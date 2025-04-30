@@ -284,9 +284,8 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 SELECT
-  `Country Code`,
   `Short Name`,
-  `Long Name`
+  `Income Group`
 FROM
   world_bank_data.wdi_country
 WHERE
@@ -358,6 +357,7 @@ ORDER BY
 ## column for each of the income categories (e.g., High, Upper middle, etc.)
 ## and a column for the row totals.
 ## (skills: select, aggregate, group by, nested query)
+
 run_sql_and_return_html(cnx, """
 SELECT
   Region,
@@ -365,7 +365,7 @@ SELECT
   SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
   SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
   SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN `Income Group`='Aggregates'           THEN 1.0 ELSE 0 END) AS Other,
+  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
   COUNT(*) AS total
 FROM
   world_bank_data.wdi_country
@@ -374,7 +374,6 @@ GROUP BY
 ORDER BY
   Region;
 """)
-
 ```
 
 ## Task 16
@@ -461,31 +460,34 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 WITH regions AS (
-  SELECT DISTINCT Region FROM world_bank_data.wdi_country
+  SELECT DISTINCT Region
+    FROM world_bank_data.wdi_country
+   WHERE Region IS NOT NULL
 ),
 incomes AS (
-  SELECT DISTINCT `Income Group` FROM world_bank_data.wdi_country
+  SELECT DISTINCT `Income Group`
+    FROM world_bank_data.wdi_country
+   WHERE `Income Group` IS NOT NULL
 ),
 all_pairs AS (
-  SELECT r.Region, i.`Income Group` FROM regions r CROSS JOIN incomes i
+  SELECT r.Region, i.`Income Group`
+    FROM regions r
+    CROSS JOIN incomes i
 )
 SELECT
   p.Region,
   p.`Income Group`,
-  COALESCE(COUNT(w.`Short Name`),0) AS country_count
+  0 AS country_count
 FROM
   all_pairs p
 LEFT JOIN world_bank_data.wdi_country w
   ON p.Region = w.Region
- AND p.`Income Group` <=> w.`Income Group`
-GROUP BY
-  p.Region, p.`Income Group`
-HAVING
-  country_count = 0
+ AND p.`Income Group` = w.`Income Group`
+WHERE
+  w.Region IS NULL
 ORDER BY
   p.Region;
 """)
-
 
 ```
 
@@ -512,7 +514,7 @@ WITH base AS (
   SELECT
     Region,
     `Income Group` AS ig,
-    COUNT(*) * 1.0 AS cnt
+    COUNT(*)          AS cnt
   FROM
     world_bank_data.wdi_country
   GROUP BY
@@ -603,7 +605,7 @@ total AS (
   SELECT SUM(num_countries) AS total_countries FROM counts
 )
 SELECT
-  c.ig            AS income_group,
+  c.ig               AS income_group,
   c.num_countries,
   t.total_countries,
   ROUND(c.num_countries / t.total_countries * 100, 1) AS pct_of_total
