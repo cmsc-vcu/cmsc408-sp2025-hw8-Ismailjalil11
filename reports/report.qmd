@@ -27,7 +27,7 @@ cnx,config = create_db_wrapper( config_map )
 ```{python}
 # Do a quick test of the connection and trap the errors better!
 
-run_sql_and_return_df(cnx,"""
+run_sql_and_return_html(cnx,"""
 select
   table_schema, table_name, table_rows
 from
@@ -50,7 +50,7 @@ How many records are in the country table?
 # How many records are in the world_bank_data.wdi_country table?
 # (skills: select, aggregate)
 
-run_sql_and_return_df(cnx,"""
+run_sql_and_return_html(cnx,"""
 select
   count(*) as "Row Count"
 from
@@ -68,7 +68,7 @@ Explore the first 5 records in the country table.
 ## Do you see any blanks or missing data?
 ## (skills: select, limit)
 
-run_sql_and_return_df(cnx,"""
+run_sql_and_return_html(cnx,"""
 select
   *
 from
@@ -90,7 +90,7 @@ List all non-countries.
 ## Once you figure it out, write a query to list all the non-countries
 ## (skills: select, where)
 
-run_sql_and_return_df(cnx,"""
+run_sql_and_return_html(cnx,"""
 select
   `Long Name`, `Region`
 from
@@ -133,7 +133,7 @@ CREATE TABLE wdi_data AS
 
 ```{python}
 # show number of records
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   COUNT(*) AS country_count
 FROM
@@ -147,7 +147,7 @@ According to the World Bank, in 2020 there were how many countries in the world?
 
 ```{python}
 ## (skills: select, aggregate)
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   COUNT(*) AS countries_2020
 FROM
@@ -166,7 +166,7 @@ What are all unique values of region in the wdi_country table?
 ## (there are several possible ways to code this in SQL)
 ## (skills: select, aggregate, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT DISTINCT
   Region
 FROM
@@ -183,7 +183,7 @@ How many countries are in each region?
 ## How many countries are in each region?
 ## (skills: select, aggregate, group by, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   Region,
   COUNT(*) AS num_countries
@@ -204,7 +204,7 @@ List the country full names and regions for all countries in north america.
 ## List the country full names and regions for all countries in north america
 ## (skills: select, where, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Long Name`, Region
 FROM
@@ -223,7 +223,7 @@ ORDER BY
 ## What region contains Qatar?  List the region, country short name and full name
 ## (skills: select, where)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   Region,
   `Short Name`,
@@ -243,7 +243,7 @@ WHERE
 ## where the abbr and wb_abbr are different.
 ## (skills: select, where, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Country Code` AS country_code,
   `Short Name`     AS short_name,
@@ -267,7 +267,7 @@ ORDER BY
 ## income category in descending order of most countries to least.
 ## (skills: select, aggregate, group by, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Income Group`       AS income_group,
   COUNT(*)             AS num_countries
@@ -289,7 +289,7 @@ ORDER BY
 ## you will be scored on the number of records returned and the value(s) 
 ## in the first column.
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Short Name`,
   `Long Name`
@@ -316,7 +316,7 @@ WHERE `Short Name` = 'CountryName';
 ```{python}
 ## Now, display the country again to verify the change stuck!
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Short Name`,
   `Income Group`
@@ -336,7 +336,7 @@ WHERE
 ## region, income group, and no.of.countries.
 ## (skills: select, aggregate, group by, order by)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   Region,
   `Income Group` AS income_group,
@@ -365,7 +365,7 @@ ORDER BY
 ## and a column for the row totals.
 ## (skills: select, aggregate, group by, nested query)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   Region,
   SUM(CASE WHEN `Income Group` = 'High income'        THEN 1 ELSE 0 END) AS High,
@@ -395,7 +395,7 @@ ORDER BY Region;
 ## PUT THE NUMBER FIRST! (use: count, region name, income group)
 ## (skills: select, aggregate, group by, nested query, order by, limit)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   COUNT(*)           AS low_income_count,
   Region,
@@ -423,7 +423,7 @@ LIMIT 1;
 ## the country code for the Marshall Islands is MHL.
 ## (skills: select, where, subquery)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
   `Country Code`,
   `Short Name`,
@@ -463,7 +463,7 @@ ORDER BY
 ## in Task 14.  (FYI - I get 6 rows in my final table.)
 ## (skills: select, where, subqueries, joins)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 WITH all_regions AS (
   SELECT DISTINCT Region FROM wdi_country
 ),
@@ -509,7 +509,7 @@ ORDER BY
 ## slam dunk after this!
 ## (skills: select, where, subqueries, joins, aggregate functions)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 WITH base AS (
   SELECT
     Region,
@@ -548,7 +548,7 @@ CROSS JOIN total_sum ts;
 ## print table similar to the table in Task 15, with Income group in the
 ## columns, Region in the rows and Percent of total in each cell of the table.
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 WITH pct AS (
   /* reuse Task 19 CTEs */
   SELECT
@@ -591,7 +591,7 @@ ORDER BY Region;
 
 ## (This is much simpler than task 20!)
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 WITH counts AS (
   SELECT
     `Income Group` AS income_group,
