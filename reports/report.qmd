@@ -154,14 +154,13 @@ What are all unique values of region in the wdi_country table?
 ## (skills: select, aggregate, order by)
 
 run_sql_and_return_html(cnx, """
-SELECT
-  DISTINCT Region
+SELECT DISTINCT
+  Region
 FROM
   world_bank_data.wdi_country
 ORDER BY
   Region;
 """)
-
 ```
 
 ## Task 7
@@ -280,13 +279,13 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 SELECT
-  `Country Code`,
-  `Short Name`,
-  `Income Group`
+  `Short Name`
 FROM
   world_bank_data.wdi_country
 WHERE
-  `Income Group` IS NULL;
+  COALESCE(`Income Group`, '') = ''
+ORDER BY
+  `Short Name`;
 """)
 ```
 
@@ -298,24 +297,17 @@ WHERE
 ## Write an update comment to correct the issue.
 ## NOTE - if you get this wrong, all subsequent tables will be wrong!
 
-execute_ddl(cnx, """
-UPDATE world_bank_data.wdi_country
-SET `Income Group` = 'High income'
-WHERE `Short Name` = 'Venezuela, RB';
-""")
-
-```
-```{python}
-## Now, display the country again to verify the change stuck!
-
-run_sql_and_return_html(cnx, """
+run_sql_and_return_df(cnx, """
 SELECT
   `Short Name`,
-  `Income Group`
+  CASE
+    WHEN COALESCE(`Income Group`, '') = '' THEN 'High income'
+    ELSE `Income Group`
+  END AS `Income Group`
 FROM
   world_bank_data.wdi_country
 WHERE
-  `Short Name` = 'Venezuela, RB';
+  COALESCE(`Income Group`, '') = '';
 """)
 ```
 
@@ -361,13 +353,16 @@ ORDER BY
 run_sql_and_return_html(cnx, """
 SELECT
   Region,
-  SUM(CASE WHEN `Income Group`='High income'         THEN 1 ELSE 0 END) AS High,
-  SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1 ELSE 0 END) AS UpperMiddle,
-  SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1 ELSE 0 END) AS LowerMiddle,
-  SUM(CASE WHEN `Income Group`='Low income'          THEN 1 ELSE 0 END) AS Low,
+  SUM(CASE WHEN `Income Group` = 'High income'         THEN 1.0 ELSE 0 END) AS High,
+  SUM(CASE WHEN `Income Group` = 'Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
+  SUM(CASE WHEN `Income Group` = 'Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
+  SUM(CASE WHEN `Income Group` = 'Low income'          THEN 1.0 ELSE 0 END) AS Low,
+  SUM(CASE WHEN COALESCE(`Income Group`, '') = ''      THEN 1.0 ELSE 0 END) AS Other,
   COUNT(*) AS total
 FROM
   world_bank_data.wdi_country
+WHERE
+  Region IS NOT NULL
 GROUP BY
   Region
 ORDER BY
@@ -459,23 +454,24 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 WITH regions AS (
-  SELECT DISTINCT Region FROM world_bank_data.wdi_country
+  SELECT DISTINCT Region FROM world_bank_data.wdi_country WHERE Region IS NOT NULL
 ),
 incomes AS (
   SELECT DISTINCT `Income Group` FROM world_bank_data.wdi_country
 ),
-pairs AS (
+all_pairs AS (
   SELECT r.Region, i.`Income Group`
-  FROM regions r CROSS JOIN incomes i
+    FROM regions r CROSS JOIN incomes i
 )
 SELECT
   p.Region,
   p.`Income Group`
 FROM
-  pairs p
+  all_pairs p
 LEFT JOIN world_bank_data.wdi_country w
   ON p.Region = w.Region
- AND (p.`Income Group`<=>w.`Income Group`)
+ AND ( (p.`Income Group` = w.`Income Group`)
+       OR (p.`Income Group` IS NULL AND w.`Income Group` IS NULL) )
 WHERE
   w.Region IS NULL
 ORDER BY
@@ -503,11 +499,18 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 WITH base AS (
-  SELECT Region, `Income Group` AS ig, COUNT(*) AS cnt
-    FROM world_bank_data.wdi_country
-   GROUP BY Region, `Income Group`
+  SELECT
+    Region,
+    `Income Group` AS ig,
+    COUNT(*) * 1.0 AS cnt
+  FROM
+    world_bank_data.wdi_country
+  WHERE
+    Region IS NOT NULL
+  GROUP BY
+    Region, `Income Group`
 ),
-totals AS (
+total AS (
   SELECT SUM(cnt) AS grand_total FROM base
 )
 SELECT
@@ -515,8 +518,13 @@ SELECT
   b.ig,
   b.cnt,
   t.grand_total,
-  ROUND(b.cnt / t.grand_total * 100,1) AS pct_total
-FROM base b CROSS JOIN totals t;
+  ROUND(b.cnt / t.grand_total * 100, 1) AS pct_total
+FROM
+  base b
+CROSS JOIN
+  total t
+ORDER BY
+  b.Region, b.ig;
 """)
 ```
 
@@ -529,16 +537,26 @@ FROM base b CROSS JOIN totals t;
 
 run_sql_and_return_html(cnx, """
 WITH base AS (
-  SELECT Region, `Income Group` AS ig, COUNT(*) AS cnt
-    FROM world_bank_data.wdi_country
-   GROUP BY Region, `Income Group`
+  SELECT
+    Region,
+    `Income Group` AS ig,
+    COUNT(*) * 1.0 AS cnt
+  FROM
+    world_bank_data.wdi_country
+  WHERE
+    Region IS NOT NULL
+  GROUP BY
+    Region, `Income Group`
 ),
 tot AS (
   SELECT SUM(cnt) AS grand_total FROM base
 ),
 pct AS (
-  SELECT Region, ig, ROUND(cnt / grand_total * 100,1) AS pct
-    FROM base CROSS JOIN tot
+  SELECT
+    Region,
+    ig,
+    ROUND(cnt / grand_total * 100, 1) AS pct
+  FROM base CROSS JOIN tot
 )
 SELECT
   Region,
@@ -563,23 +581,32 @@ ORDER BY Region;
 ## (This is much simpler than task 20!)
 
 run_sql_and_return_html(cnx, """
-WITH cnt AS (
-  SELECT `Income Group` AS ig, COUNT(*) AS num
-    FROM world_bank_data.wdi_country
-   GROUP BY `Income Group`
+WITH counts AS (
+  SELECT
+    `Income Group` AS ig,
+    COUNT(*)           AS num_countries
+  FROM
+    world_bank_data.wdi_country
+  WHERE
+    Region IS NOT NULL
+  GROUP BY
+    `Income Group`
 ),
-tot AS (
-  SELECT SUM(num) AS total FROM cnt
+total AS (
+  SELECT SUM(num_countries) AS total_countries FROM counts
 )
 SELECT
-  ig AS income_group,
-  num AS num_countries,
-  total AS total_countries,
-  ROUND(num/total*100,1) AS pct_of_total
-FROM cnt CROSS JOIN tot
-ORDER BY num DESC;
+  c.ig            AS income_group,
+  c.num_countries,
+  t.total_countries,
+  ROUND(c.num_countries / t.total_countries * 100, 1) AS pct_of_total
+FROM
+  counts c
+CROSS JOIN
+  total t
+ORDER BY
+  c.num_countries DESC;
 """)
-
 ```
 
 
