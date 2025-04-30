@@ -158,6 +158,8 @@ SELECT DISTINCT
   Region
 FROM
   world_bank_data.wdi_country
+WHERE
+  Region IS NOT NULL
 ORDER BY
   Region;
 """)
@@ -177,11 +179,14 @@ SELECT
   COUNT(*) AS num_countries
 FROM
   world_bank_data.wdi_country
+WHERE
+  Region IS NOT NULL
 GROUP BY
   Region
 ORDER BY
   num_countries DESC;
 """)
+
 ```
 
 ## Task 8
@@ -279,14 +284,17 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 SELECT
-  `Short Name`
+  `Country Code`,
+  `Short Name`,
+  `Income Group`
 FROM
   world_bank_data.wdi_country
 WHERE
-  COALESCE(`Income Group`, '') = ''
+  `Income Group` IS NULL
 ORDER BY
   `Short Name`;
 """)
+
 ```
 
 ## Task 13
@@ -297,17 +305,19 @@ ORDER BY
 ## Write an update comment to correct the issue.
 ## NOTE - if you get this wrong, all subsequent tables will be wrong!
 
-run_sql_and_return_df(cnx, """
+run_sql_and_return_html(cnx, """
 SELECT
+  `Country Code`,
   `Short Name`,
   CASE
-    WHEN COALESCE(`Income Group`, '') = '' THEN 'High income'
+    WHEN `Income Group` IS NULL THEN 'High income'
     ELSE `Income Group`
   END AS `Income Group`
 FROM
   world_bank_data.wdi_country
 WHERE
-  COALESCE(`Income Group`, '') = '';
+  `Income Group` IS NULL
+  AND `Short Name` = 'Venezuela, RB';
 """)
 ```
 
@@ -353,11 +363,11 @@ ORDER BY
 run_sql_and_return_html(cnx, """
 SELECT
   Region,
-  SUM(CASE WHEN `Income Group` = 'High income'         THEN 1.0 ELSE 0 END) AS High,
-  SUM(CASE WHEN `Income Group` = 'Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
-  SUM(CASE WHEN `Income Group` = 'Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
-  SUM(CASE WHEN `Income Group` = 'Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN COALESCE(`Income Group`, '') = ''      THEN 1.0 ELSE 0 END) AS Other,
+  SUM(CASE WHEN `Income Group`='High income'         THEN 1.0 ELSE 0 END) AS High,
+  SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
+  SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
+  SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
+  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
   COUNT(*) AS total
 FROM
   world_bank_data.wdi_country
@@ -368,6 +378,7 @@ GROUP BY
 ORDER BY
   Region;
 """)
+
 ```
 
 ## Task 16
@@ -454,29 +465,37 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 WITH regions AS (
-  SELECT DISTINCT Region FROM world_bank_data.wdi_country WHERE Region IS NOT NULL
+  SELECT DISTINCT Region
+    FROM world_bank_data.wdi_country
+   WHERE Region IS NOT NULL
 ),
 incomes AS (
-  SELECT DISTINCT `Income Group` FROM world_bank_data.wdi_country
+  SELECT DISTINCT `Income Group`
+    FROM world_bank_data.wdi_country
 ),
 all_pairs AS (
   SELECT r.Region, i.`Income Group`
-    FROM regions r CROSS JOIN incomes i
+    FROM regions r
+    CROSS JOIN incomes i
 )
 SELECT
   p.Region,
-  p.`Income Group`
+  p.`Income Group`,
+  COALESCE(COUNT(w.`Short Name`),0) AS country_count
 FROM
   all_pairs p
 LEFT JOIN world_bank_data.wdi_country w
   ON p.Region = w.Region
  AND ( (p.`Income Group` = w.`Income Group`)
        OR (p.`Income Group` IS NULL AND w.`Income Group` IS NULL) )
-WHERE
-  w.Region IS NULL
+GROUP BY
+  p.Region, p.`Income Group`
+HAVING
+  country_count = 0
 ORDER BY
   p.Region;
 """)
+
 ```
 
 ## Task 19
@@ -526,6 +545,7 @@ CROSS JOIN
 ORDER BY
   b.Region, b.ig;
 """)
+
 ```
 
 ## Task 20
@@ -607,6 +627,7 @@ CROSS JOIN
 ORDER BY
   c.num_countries DESC;
 """)
+
 ```
 
 
