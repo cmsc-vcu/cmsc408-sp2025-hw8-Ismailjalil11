@@ -284,12 +284,14 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 SELECT
+  `Country Code`,
   `Short Name`,
   `Income Group`
 FROM
   world_bank_data.wdi_country
 WHERE
   `Income Group` IS NULL
+  AND Region IS NOT NULL
 ORDER BY
   `Short Name`;
 """)
@@ -315,7 +317,7 @@ FROM
   world_bank_data.wdi_country
 WHERE
   `Income Group` IS NULL
-  AND `Short Name` = 'Venezuela, RB';
+  AND `Short Name` = 'Venezuela';
 """)
 ```
 
@@ -365,10 +367,11 @@ SELECT
   SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
   SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
   SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
-  COUNT(*) AS total
+  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other
 FROM
   world_bank_data.wdi_country
+WHERE
+  Region IS NOT NULL
 GROUP BY
   Region
 ORDER BY
@@ -514,28 +517,38 @@ WITH base AS (
   SELECT
     Region,
     `Income Group` AS ig,
-    COUNT(*)          AS cnt
+    COUNT(*)           AS country_count
   FROM
     world_bank_data.wdi_country
+  WHERE
+    Region IS NOT NULL
   GROUP BY
     Region, `Income Group`
 ),
-total AS (
-  SELECT SUM(cnt) AS grand_total FROM base
+region_totals AS (
+  SELECT Region, SUM(country_count) AS region_sum FROM base GROUP BY Region
+),
+group_totals AS (
+  SELECT ig AS income_group, SUM(country_count) AS group_sum FROM base GROUP BY ig
+),
+total_sum AS (
+  SELECT SUM(country_count) AS total_sum FROM base
 )
 SELECT
   b.Region,
-  b.ig,
-  b.cnt,
-  t.grand_total,
-  ROUND(b.cnt / t.grand_total * 100, 1) AS pct_total
-FROM
-  base b
-CROSS JOIN
-  total t
-ORDER BY
-  b.Region, b.ig;
+  b.ig              AS income_group,
+  b.country_count,
+  rt.region_sum,
+  gt.group_sum,
+  ts.total_sum,
+  ROUND(b.country_count/ts.total_sum*100,1) AS pct_total
+FROM base b
+JOIN region_totals rt ON b.Region=rt.Region
+JOIN group_totals gt ON b.ig=gt.income_group
+CROSS JOIN total_sum ts
+ORDER BY b.Region, b.ig;
 """)
+
 
 ```
 
@@ -598,6 +611,8 @@ WITH counts AS (
     COUNT(*)           AS num_countries
   FROM
     world_bank_data.wdi_country
+  WHERE
+    Region IS NOT NULL
   GROUP BY
     `Income Group`
 ),
@@ -608,13 +623,10 @@ SELECT
   c.ig               AS income_group,
   c.num_countries,
   t.total_countries,
-  ROUND(c.num_countries / t.total_countries * 100, 1) AS pct_of_total
-FROM
-  counts c
-CROSS JOIN
-  total t
-ORDER BY
-  c.num_countries DESC;
+  ROUND(c.num_countries/t.total_countries*100,1) AS pct_of_total
+FROM counts c
+CROSS JOIN total t
+ORDER BY c.num_countries DESC;
 """)
 
 ```
