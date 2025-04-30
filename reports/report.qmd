@@ -286,7 +286,7 @@ run_sql_and_return_html(cnx, """
 SELECT
   `Country Code`,
   `Short Name`,
-  `Income Group`
+  `Long Name`
 FROM
   world_bank_data.wdi_country
 WHERE
@@ -294,7 +294,6 @@ WHERE
 ORDER BY
   `Short Name`;
 """)
-
 ```
 
 ## Task 13
@@ -359,7 +358,6 @@ ORDER BY
 ## column for each of the income categories (e.g., High, Upper middle, etc.)
 ## and a column for the row totals.
 ## (skills: select, aggregate, group by, nested query)
-
 run_sql_and_return_html(cnx, """
 SELECT
   Region,
@@ -367,12 +365,10 @@ SELECT
   SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
   SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
   SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
+  SUM(CASE WHEN `Income Group`='Aggregates'           THEN 1.0 ELSE 0 END) AS Other,
   COUNT(*) AS total
 FROM
   world_bank_data.wdi_country
-WHERE
-  Region IS NOT NULL
 GROUP BY
   Region
 ORDER BY
@@ -465,18 +461,13 @@ ORDER BY
 
 run_sql_and_return_html(cnx, """
 WITH regions AS (
-  SELECT DISTINCT Region
-    FROM world_bank_data.wdi_country
-   WHERE Region IS NOT NULL
+  SELECT DISTINCT Region FROM world_bank_data.wdi_country
 ),
 incomes AS (
-  SELECT DISTINCT `Income Group`
-    FROM world_bank_data.wdi_country
+  SELECT DISTINCT `Income Group` FROM world_bank_data.wdi_country
 ),
 all_pairs AS (
-  SELECT r.Region, i.`Income Group`
-    FROM regions r
-    CROSS JOIN incomes i
+  SELECT r.Region, i.`Income Group` FROM regions r CROSS JOIN incomes i
 )
 SELECT
   p.Region,
@@ -486,8 +477,7 @@ FROM
   all_pairs p
 LEFT JOIN world_bank_data.wdi_country w
   ON p.Region = w.Region
- AND ( (p.`Income Group` = w.`Income Group`)
-       OR (p.`Income Group` IS NULL AND w.`Income Group` IS NULL) )
+ AND p.`Income Group` <=> w.`Income Group`
 GROUP BY
   p.Region, p.`Income Group`
 HAVING
@@ -495,6 +485,7 @@ HAVING
 ORDER BY
   p.Region;
 """)
+
 
 ```
 
@@ -524,8 +515,6 @@ WITH base AS (
     COUNT(*) * 1.0 AS cnt
   FROM
     world_bank_data.wdi_country
-  WHERE
-    Region IS NOT NULL
   GROUP BY
     Region, `Income Group`
 ),
@@ -607,8 +596,6 @@ WITH counts AS (
     COUNT(*)           AS num_countries
   FROM
     world_bank_data.wdi_country
-  WHERE
-    Region IS NOT NULL
   GROUP BY
     `Income Group`
 ),
