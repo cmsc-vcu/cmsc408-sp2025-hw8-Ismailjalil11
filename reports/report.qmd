@@ -363,12 +363,11 @@ ORDER BY
 run_sql_and_return_html(cnx, """
 SELECT
   Region,
-  SUM(CASE WHEN `Income Group`='High income'         THEN 1.0 ELSE 0 END) AS High,
-  SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
-  SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
-  SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
-  COUNT(*)*1.0                                           AS Total
+  SUM(CASE WHEN `Income Group`='High income'         THEN 1 ELSE 0 END)*1.0 AS High,
+  SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1 ELSE 0 END)*1.0 AS UpperMiddle,
+  SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1 ELSE 0 END)*1.0 AS LowerMiddle,
+  SUM(CASE WHEN `Income Group`='Low income'          THEN 1 ELSE 0 END)*1.0 AS Low,
+  COUNT(*)*1.0                                               AS Total
 FROM
   world_bank_data.wdi_country
 GROUP BY
