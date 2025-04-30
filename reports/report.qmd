@@ -367,16 +367,16 @@ SELECT
   SUM(CASE WHEN `Income Group`='Upper middle income' THEN 1.0 ELSE 0 END) AS UpperMiddle,
   SUM(CASE WHEN `Income Group`='Lower middle income' THEN 1.0 ELSE 0 END) AS LowerMiddle,
   SUM(CASE WHEN `Income Group`='Low income'          THEN 1.0 ELSE 0 END) AS Low,
-  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other
+  SUM(CASE WHEN `Income Group` IS NULL                THEN 1.0 ELSE 0 END) AS Other,
+  COUNT(*)*1.0                                           AS Total
 FROM
   world_bank_data.wdi_country
-WHERE
-  Region IS NOT NULL
 GROUP BY
   Region
 ORDER BY
   Region;
 """)
+
 ```
 
 ## Task 16
@@ -607,28 +607,32 @@ ORDER BY Region;
 run_sql_and_return_html(cnx, """
 WITH counts AS (
   SELECT
-    `Income Group` AS ig,
-    COUNT(*)           AS num_countries
+    CASE WHEN `Income Group` IS NULL THEN 'High income'
+         ELSE `Income Group`
+    END                  AS income_group,
+    COUNT(*)             AS num_countries
   FROM
     world_bank_data.wdi_country
   WHERE
     Region IS NOT NULL
   GROUP BY
-    `Income Group`
+    income_group
 ),
 total AS (
   SELECT SUM(num_countries) AS total_countries FROM counts
 )
 SELECT
-  c.ig               AS income_group,
+  c.income_group,
   c.num_countries,
   t.total_countries,
   ROUND(c.num_countries/t.total_countries*100,1) AS pct_of_total
-FROM counts c
-CROSS JOIN total t
-ORDER BY c.num_countries DESC;
+FROM
+  counts c
+CROSS JOIN
+  total t
+ORDER BY
+  c.num_countries DESC;
 """)
-
 ```
 
 
